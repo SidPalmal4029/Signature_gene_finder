@@ -6,7 +6,7 @@ usage() {
   echo "Signaturegenefinder"
   echo ""
   echo "Usage:"
-  echo "  run_signaturegenefinder.sh -i <genome_dir> -o <output_dir> -g <outgroup_name>"
+  echo " Signature-gene-finder.sh -i <genome_dir> -o <output_dir> -g <outgroup_name> -t <threads> "
   echo ""
   exit 1
 }
@@ -16,6 +16,7 @@ while getopts "i:o:g:" opt; do
     i) INPUT_DIR="$OPTARG" ;;
     o) OUT_DIR="$OPTARG" ;;
     g) OUTGROUP="$OPTARG" ;;
+    t) THREADS="$OPTARG" ;;
     *) usage ;;
   esac
 done
@@ -23,10 +24,12 @@ done
 [ -z "$INPUT_DIR" ] && usage
 [ -z "$OUT_DIR" ] && usage
 [ -z "$OUTGROUP" ] && usage
+[ -z "$THREADS" ] && usage
 
 mkdir -p "$OUT_DIR"
 
-python3 signaturegenefinder.py \
+python3 -u signaturegenefinder.py \
   --input "$INPUT_DIR" \
   --output "$OUT_DIR" \
-  --outgroup "$OUTGROUP"
+  --outgroup "$OUTGROUP" \
+  --threads "$THREADS"
