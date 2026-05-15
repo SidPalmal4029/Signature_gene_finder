@@ -39,3 +39,8 @@ python3 -u preperator.py \
   --threads "$THREADS"
 
 echo "[INFO] Starting Signature gene finding operation."
+python3 -u signaturegenefinder.py \
+  --input "$xxx" \
+  --output "$yyy" \
+  --outgroup "$OUTGROUP" \
+  --threads "$THREADS"
