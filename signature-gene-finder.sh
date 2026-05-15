@@ -26,10 +26,16 @@ done
 [ -z "$OUTGROUP" ] && usage
 [ -z "$THREADS" ] && usage
 
-mkdir -p "$OUT_DIR"
+export GENOMES="$OUT_DIR/GENOMES"
+export PREP="$OUT_DIR/PREP"
+mkdir -p "$OUT_DIR" "$GENOMEs"
+cp -r "$INPUT_DIR" "$GENOMEs" "$PREP"
 
-python3 -u signaturegenefinder.py \
-  --input "$INPUT_DIR" \
-  --output "$OUT_DIR" \
+echo "[INFO] Starting preparation of Genomes for Signature gene finding operation." 
+python3 -u preperator.py \
+  --input "$GENOMEs" \
+  --output "$PREP" \
   --outgroup "$OUTGROUP" \
   --threads "$THREADS"
+
+echo "[INFO] Starting Signature gene finding operation."
