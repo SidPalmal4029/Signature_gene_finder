@@ -1,10 +1,10 @@
 import argparse
 import os
 
-from modules.annotate_dfast import run_dfast_batch
-from modules.run_orthofinder import run_orthofinder
-from modules.reroot_tree import reroot_tree
-from modules.build_phylogroups import auto_phylogroups
+from worker.annotate_dfast import run_dfast_batch
+from worker.run_orthofinder import run_orthofinder
+from worker.reroot_tree import reroot_tree
+from worker.build_phylogroups import auto_phylogroups
 
 
 def main():
