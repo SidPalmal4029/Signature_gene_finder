@@ -26,10 +26,9 @@ def main():
     run_orthofinder(ann_dir, ortho_dir)
 
     # Step 5: Re-root tree
-    tree_in = os.path.join(ortho_dir, "Species_Tree", "SpeciesTree_rooted.nwk")
-    tree_out = os.path.join(args.output, "SpeciesTree_rerooted.nwk")
-
-    reroot_tree(tree_in, tree_out, args.outgroup)
+    tree_in = os.path.join(of_out, "Species_Tree", "SpeciesTree_rooted.txt")
+    tree_out = os.path.join(of_out, "Species_Tree", "SpeciesTree_rerooted.nwk")
+    reroot_tree(tree_in, outgroup_name, tree_out)
 
     # Step 6: Build phylogroups
     phylo_csv = os.path.join(args.output, "phylogroups.csv")
