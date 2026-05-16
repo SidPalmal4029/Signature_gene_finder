@@ -10,39 +10,81 @@ from worker.build_phylogroups import auto_phylogroups
 
 def main():
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--outgroup", required=True)
+    parser.add_argument("--threads", type=int, default=8)
 
     args = parser.parse_args()
 
     os.makedirs(args.output, exist_ok=True)
 
-    # Step 1–3: Annotation
+    # STEP 1: DFAST ANNOTATION
     ann_dir = os.path.join(args.output, "annotations")
     run_dfast_batch(args.input, ann_dir)
 
-    # Step 2: ANI -AAI calculation
-     ogri_dir = os.path.join(args.output, "validation")
-     run_ogri(
+    # pooled FAA directory (from your DFAST design)
+    faa_dir = os.path.join(ann_dir, "pooled", "faa")
+
+    # STEP 2: OGRI (ANI + AAI)
+    ogri_dir = os.path.join(args.output, "validation")
+
+    run_ogri(
         genome_dir=args.input,
         faa_dir=faa_dir,
         out_dir=ogri_dir,
         threads=args.threads
     )
 
-    # Step 4: Orthofinder
+
+    # STEP 3: ORTHOFINDER
     ortho_dir = os.path.join(args.output, "orthofinder")
-    run_orthofinder(ann_dir, ortho_dir)
 
-    # Step 5: Re-root tree
-    tree_in = os.path.join(of_out, "Species_Tree", "SpeciesTree_rooted.txt")
-    tree_out = os.path.join(of_out, "Species_Tree", "SpeciesTree_rerooted.nwk")
-    reroot_tree(tree_in, args.outgroup, tree_out)
+    run_orthofinder(
+        ann_dir=ann_dir,
+        out_dir=ortho_dir,
+        threads=args.threads
+    )
 
-    # Step 6: Build phylogroups
+    # STEP 4: LOCATE TREE (robust)
+    results_dirs = [
+        d for d in os.listdir(ortho_dir)
+        if d.startswith("Results")
+    ]
+
+    if not results_dirs:
+        raise RuntimeError("Orthofinder results not found")
+
+    results_path = os.path.join(ortho_dir, results_dirs[0])
+
+    tree_in = os.path.join(
+        results_path,
+        "Species_Tree",
+        "SpeciesTree_rooted.txt"
+    )
+
+    tree_out = os.path.join(
+        ortho_dir,
+        "SpeciesTree_rerooted.nwk"
+    )
+
+    # STEP 5: REROOT TREE
+    reroot_tree(
+        tree_in,
+        args.outgroup,
+        tree_out
+    )
+
+    # STEP 6: PHYLOGROUP BUILDING
     phylo_csv = os.path.join(args.output, "phylogroups.csv")
-    auto_phylogroups(tree_out, phylo_csv)
+
+    auto_phylogroups(
+        tree_file=tree_out,
+        out_csv=phylo_csv
+        # future:
+        # ogri_db=os.path.join(ogri_dir, "db", "ogri.db")
+    )
 
     print("\n[DONE] Pipeline complete up to phylogroup generation")
 
