@@ -59,9 +59,23 @@ class ParallelismPolicy:
     # ORTHOFINDER STRATEGY
     def orthofinder_policy(self):
         total = self.base_threads()
-        return {
-            "threads": total
-        }
+        if total <= 8:
+            t = int(total * 0.7)
+        elif total <= 16:
+            t = int(total * 0.6)
+        elif total <= 32:
+            t = int(total * 0.5)
+        elif total <= 96:
+            t = int(total * 0.55)
+         else:
+            t = int(total * 0.5)
+         a = max(1, total - t)
+
+         return {
+            "total": total,
+            "search_threads": t,
+            "analysis_threads": a
+          }
     # GENERIC SPLIT
     def split(self, n_tasks):
         total = self.base_threads()
