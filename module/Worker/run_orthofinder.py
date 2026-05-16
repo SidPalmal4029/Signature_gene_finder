@@ -6,10 +6,7 @@ from modules.parallel_policy import ParallelismPolicy
 def run_orthofinder(prep_dir, out_dir):
 
     os.makedirs(out_dir, exist_ok=True)
-
-    # -----------------------------
-    # INPUT: use pooled FAA directly
-    # -----------------------------
+    # INPUT: use the pooled FAA directly
     faa_dir = os.path.join(prep_dir, "pooled", "faa")
 
     if not os.path.exists(faa_dir):
@@ -22,9 +19,7 @@ def run_orthofinder(prep_dir, out_dir):
 
     print(f"[INFO] Orthofinder input genomes: {len(faa_files)}")
 
-    # -----------------------------
-    # PARALLELISM POLICY (STRICT)
-    # -----------------------------
+    # PARALLELISM POLICY
     policy = ParallelismPolicy()
     p = policy.orthofinder_policy()
 
@@ -36,17 +31,13 @@ def run_orthofinder(prep_dir, out_dir):
     print(f"[INFO] Search threads (-t): {t}")
     print(f"[INFO] Analysis threads (-a): {a}")
 
-    # -----------------------------
     # OUTPUT DIRECTORY
-    # -----------------------------
     of_out = os.path.join(out_dir, "orthofinder")
 
     if os.path.exists(of_out):
         subprocess.run(["rm", "-rf", of_out])
 
-    # -----------------------------
-    # ACCURACY-FIRST COMMAND
-    # -----------------------------
+    # ACCURACY-FIRST Orthofinder command support version (3.1.4)
     cmd = [
         "orthofinder",
         "-f", faa_dir,
@@ -59,8 +50,8 @@ def run_orthofinder(prep_dir, out_dir):
         "-o", of_out
     ]
 
-    print("[INFO] Running Orthofinder (accuracy mode)...")
+    print("[INFO] Running Orthofinder...")
 
     subprocess.run(cmd, check=True)
 
-    print(f"[INFO] Orthofinder completed → {of_out}")
+    print(f"[INFO] Orthofinder completed : results at  {of_out}")
