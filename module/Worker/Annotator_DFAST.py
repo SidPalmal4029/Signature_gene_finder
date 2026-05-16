@@ -37,7 +37,9 @@ def create_pool_dirs(base_dir):
     return pool_dirs
 
 # RUN DFAST PER GENOME
-def run_single_dfast(infile, genome_id, outdir, threads):
+def run_single_dfast(task):
+
+    infile, genome_id, outdir, threads = task
 
     cmd = [
         "dfast",
@@ -49,6 +51,8 @@ def run_single_dfast(infile, genome_id, outdir, threads):
     ]
 
     subprocess.run(cmd, check=True)
+
+    return genome_id
 
 # COPY OUTPUTS TO POOL
 def collect_outputs(outdir, genome_id, pool_dirs):
