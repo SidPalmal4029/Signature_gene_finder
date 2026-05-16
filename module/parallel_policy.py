@@ -24,6 +24,37 @@ class ParallelismPolicy:
     # -----------------------------
     # DFAST STRATEGY
     # -----------------------------
+    def dfast_policy(total_cpus, n_genomes):
+        T_TARGET = 12
+        T_MIN = 4
+        T_MAX = 16
+        if total_cpus <= 16:
+            return {
+                "jobs": 1,
+                "threads": [total_cpus]
+            }
+       # number of jobs
+       jobs = max(1, total_cpus // T_TARGET)
+       jobs = min(jobs, n_genomes)
+
+       base = total_cpus // jobs
+       remainder = total_cpus % jobs
+
+       threads = []
+
+       for i in range(jobs):
+           t = base + (1 if i < remainder else 0)
+           # clamp only if extreme
+           if t > T_MAX:
+               t = T_MAX
+           if t < T_MIN:
+               t = T_MIN
+
+            threads.append(t)
+        return {
+        "jobs": jobs,
+        "threads": threads
+    }
     def dfast_policy(self, n_genomes):
 
         total = self.base_threads()
