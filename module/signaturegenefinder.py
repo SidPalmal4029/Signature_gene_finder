@@ -1,11 +1,11 @@
 import argparse
 import os
 
-from worker.signature_core import detect_signature_patterns
-from worker.core_genes import compute_core_genes
-from worker.annotation_mapper import add_annotations
-from worker.enrichment import run_enrichment
-from worker.visualization import generate_plots
+from Worker.signature_core import detect_signature_patterns
+from Worker.core_genes import compute_core_genes
+from Worker.annotation_mapper import add_annotations
+from Worker.enrichment import run_enrichment
+from Worker.visualization import generate_plots
 
 
 def main():
