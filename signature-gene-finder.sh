@@ -35,13 +35,18 @@ while getopts "i:o:g:t:m:h-:" opt; do
         *) usage ;;
       esac
       ;;
-      case "$MODE" in
-        prep|signature|all) ;;
-        *)
-          echo "[ERROR] Invalid mode: $MODE"
-     *) usage ;;
+    *) usage ;;
   esac
 done
+
+# MODE VALIDATION
+case "$MODE" in
+  prep|signature|all) ;;
+  *)
+    echo "[ERROR] Invalid mode: $MODE"
+    usage
+    ;;
+esac
 
 # HELP DISPLAY
 if [[ "${SHOW_HELP:-0}" -eq 1 ]]; then
