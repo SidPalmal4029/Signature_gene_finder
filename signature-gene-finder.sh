@@ -35,7 +35,11 @@ while getopts "i:o:g:t:m:h-:" opt; do
         *) usage ;;
       esac
       ;;
-    *) usage ;;
+      case "$MODE" in
+        prep|signature|all) ;;
+        *)
+          echo "[ERROR] Invalid mode: $MODE"
+     *) usage ;;
   esac
 done
 
@@ -57,6 +61,7 @@ if [[ "${SHOW_HELP:-0}" -eq 1 ]]; then
 fi
 
 # VALIDATION
+
 if [[ "$MODE" != "signature" ]]; then
   [ -z "${INPUT_DIR:-}" ] && usage
   [ ! -d "$INPUT_DIR" ] && { echo "[ERROR] Input directory not found: $INPUT_DIR"; exit 1; }
@@ -99,7 +104,7 @@ run_step() {
 
   log "[INFO] Starting: $STEP_NAME"
 
-  "$@" 2>&1 | while read -r line; do
+  "$@" 2>&1 | while IFS=read -r line; do
     echo "$line"
     echo "[$STEP_NAME] $line" >> "$LOG"
   done
@@ -117,9 +122,9 @@ if [[ "$MODE" == "prep" || "$MODE" == "all" ]]; then
     \( -iname "*.fna" -o -iname "*.fa" -o -iname "*.fasta" \))
 
   [ "${#GENOME_FILES[@]}" -eq 0 ] && { log "[ERROR] No genomes found"; exit 1; }
-
+  
   log "[INFO] Copying genomes..."
-
+  rm -rf "$GENOMES"/*
   for f in "${GENOME_FILES[@]}"; do
     cp "$f" "$GENOMES/"
   done
@@ -135,8 +140,8 @@ fi
 # STEP 2: SIGNATURE GENE FINDING
 if [[ "$MODE" == "signature" || "$MODE" == "all" ]]; then
 
-  if [[ "$MODE" == "signature" && ! -d "$PREP" ]]; then
-    log "[ERROR] PREP directory missing"
+  if [[ "$MODE" == "signature" then
+    [ ! -f "$PREP/pangenome/pan_matrix_binary.tsv" ] && { log "[ERROR] PREP incomplete, Required files missing"; exit 1; }
     exit 1
   fi
 
