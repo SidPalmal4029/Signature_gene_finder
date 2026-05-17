@@ -1,1 +1,149 @@
+# ==========================================
+# SignatureGeneFinder - Installation Config
+# ==========================================
 
+# ENVIRONMENT
+environment:
+  name: SignatureGeneFinder
+  python: "3.12"
+
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+
+# DEPENDENCIES
+dependencies:
+
+  conda:
+
+    # ---- Core tools ----
+    - fastani
+    - ezaai
+    - diamond
+    - mmseqs2
+    - prodigal
+    - fasttree
+    - orthofinder
+    - dfast
+
+    # ---- Java for EzAAI ----
+    - openjdk=8
+
+    # ---- Perl stack ----
+    - perl=5.32
+    - perl-bioperl
+    - perl-json
+    - perl-parallel-forkmanager
+    - perl-list-moreutils
+    - perl-file-which
+    - perl-data-dumper
+    - perl-getopt-long
+    - perl-carp
+    - perl-gd
+
+    # ---- Pangenome ----
+    - get_homologues
+
+    # ---- Python libraries ----
+    - biopython
+    - pandas
+    - matplotlib
+
+    # ---- Supporting tools ----
+    - blast
+    - mcl
+    - hmmer
+
+  pip: []
+
+# ------------------------------
+# TOOL VALIDATION
+# ------------------------------
+validation:
+
+  required_tools:
+    - fastANI
+    - ezaai
+    - diamond
+    - mmseqs
+    - prodigal
+    - fasttree
+    - orthofinder
+    - dfast
+    - get_homologues.pl
+    - perl
+    - python3
+    - java
+
+  optional_tools:
+    - hmmscan
+    - blastp
+# DATABASE CHECKS
+databases:
+
+  eggnog:
+    path: "$CONDA_PREFIX/share/eggnog-mapper/data"
+    required: false
+
+  dfast:
+    path: "$CONDA_PREFIX/share/dfast"
+    required: false
+
+# INSTALLATION PATHS
+paths:
+  base: "$CONDA_PREFIX"
+  bin: "$CONDA_PREFIX/bin"
+  share: "$CONDA_PREFIX/share/SignatureGeneFinder"
+
+
+# FILE DEPLOYMENT
+files:
+  module_dir: "module"
+  wrapper: "Signature-gene-finder.sh"
+  help:
+    - help.md
+    - help.txt
+
+
+# WRAPPER SETTINGS
+wrapper:
+  name: "Signature-gene-finder"
+  chmod: true
+  symlink: true
+  use_relative_paths: true
+
+# RUNTIME BEHAVIOR
+runtime:
+
+  clean_install: false
+  overwrite: true
+
+  threads:
+    auto_detect: true
+    max_fraction: 0.95
+
+
+# VERIFICATION
+verification:
+
+  check_perl_modules: true
+  check_binaries: true
+  check_paths: true
+
+  test_commands:
+    - "get_homologues.pl -h"
+    - "fastANI --help"
+    - "diamond help"
+    - "mmseqs -h"
+    - "java -version"
+
+# FUTURE EXTENSIONS
+extensions:
+
+  enable_parquet: false
+  enable_sqlite: false
+
+  logging:
+    level: "INFO"
+    save_pipeline_log: true
