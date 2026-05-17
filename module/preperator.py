@@ -6,6 +6,7 @@ from worker.ogri_calc import run_ogri
 from worker.run_orthofinder import run_orthofinder
 from worker.reroot_tree import reroot_tree
 from worker.build_phylogroups import auto_phylogroups
+from worker.run_pangenome import run_pangenome
 
 
 def main():
@@ -85,6 +86,15 @@ def main():
         # future:
         # ogri_db=os.path.join(ogri_dir, "db", "ogri.db")
     )
+    
+     # STEP 7: PANGENOME
+     pangenome_dir = os.path.join(args.output, "pangenome")
+     run_pangenome(
+         ann_dir=ann_dir,
+         out_dir=pangenome_dir,
+         outgroup=args.outgroup,
+         threads=args.threads
+     )   
 
     print("\n[DONE] Pipeline complete up to phylogroup generation")
 
