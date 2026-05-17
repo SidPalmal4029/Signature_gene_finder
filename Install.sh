@@ -31,7 +31,6 @@ check_dir() {
 
 # Root
 check_file "signature-gene-finder.sh"
-check_file "install.sh"
 check_file "help.txt"
 
 # YAML
