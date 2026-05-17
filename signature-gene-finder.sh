@@ -73,94 +73,33 @@ RESULTS="$OUT_DIR/RESULTS"
 
 mkdir -p "$GENOMES" "$PREP" "$RESULTS"
 
-# -----------------------------
 # LOGGING
-# -----------------------------
 LOG="$OUT_DIR/pipeline.log"
 
 log() {
-  echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG"
 }
 
 log "[INFO] Pipeline started"
+log "[INFO] Mode: $MODE"
 
-# -----------------------------
-# AUTO THREAD DETECTION
-# -----------------------------
+# THREADS
 if [ -z "${THREADS:-}" ]; then
-
   NPROC=$(nproc)
-
-  if [ "$NPROC" -le 4 ]; then
-    THREADS=$(( NPROC / 2 ))
-    [ "$THREADS" -lt 1 ] && THREADS=1
-
-  elif [ "$NPROC" -le 8 ]; then
-    THREADS=$NPROC
-
-  else
-    THREADS=$(awk -v n="$NPROC" 'BEGIN { printf "%d", n*0.95 }')
-  fi
-
-  log "[INFO] Auto-detected CPUs : $NPROC"
-  log "[INFO] Using threads     : $THREADS"
-
-else
-  log "[INFO] Using user-defined threads: $THREADS"
+  THREADS=$(( NPROC > 8 ? NPROC * 95 / 100 : NPROC ))
+  [ "$THREADS" -lt 1 ] && THREADS=1
 fi
 
-# DETECT FASTA FILES
-log "[INFO] Scanning input directory..."
+log "[INFO] Threads: $THREADS"
 
-mapfile -t GENOME_FILES < <(find "$INPUT_DIR" -maxdepth 1 -type f \
-  \( -iname "*.fna" -o -iname "*.fa" -o -iname "*.fasta" \))
-
-GENOME_COUNT=${#GENOME_FILES[@]}
-
-if [ "$GENOME_COUNT" -eq 0 ]; then
-  log "[ERROR] No genome fasta files found"
-  exit 1
-fi
-
-log "[INFO] Found $GENOME_COUNT genome files"
-
-# LIST FILES
-log "[INFO] Input genomes:"
-for f in "${GENOME_FILES[@]}"; do
-  log "  - $(basename "$f")"
-done
-
-# COPY FILES
-log "[INFO] Copying genome files..."
-
-for f in "${GENOME_FILES[@]}"; do
-  cp "$f" "$GENOMES/"
-done
-
-log "[INFO] Copy complete :  $GENOMES"
-
-
-# PIPELINE SUMMARY
-log "----------------------------------------"
-log "[INFO] Pipeline configuration"
-log "Input Dir   : $INPUT_DIR"
-log "Output Dir  : $OUT_DIR"
-log "Threads     : $THREADS"
-log "Outgroup    : $OUTGROUP"
-log "Genomes     : $GENOME_COUNT"
-log "Mode        : "$MODE"
-log "----------------------------------------"
-
-# -----------------------------
 # STEP RUNNER
-# -----------------------------
 run_step() {
   STEP_NAME="$1"
   shift
 
   log "[INFO] Starting: $STEP_NAME"
 
-  "$@" 2>&1 | while IFS= read -r line; do
+  "$@" 2>&1 | while read -r line; do
     echo "$line"
     echo "[$STEP_NAME] $line" >> "$LOG"
   done
@@ -168,10 +107,23 @@ run_step() {
   log "[INFO] Completed: $STEP_NAME"
 }
 
-# =========================================================
-# STEP 1: PREPARATION
-# =========================================================
+
+# STEP 1: PREP (preparatory  step)
 if [[ "$MODE" == "prep" || "$MODE" == "all" ]]; then
+
+  log "[INFO] Scanning genomes..."
+
+  mapfile -t GENOME_FILES < <(find "$INPUT_DIR" -maxdepth 1 -type f \
+    \( -iname "*.fna" -o -iname "*.fa" -o -iname "*.fasta" \))
+
+  [ "${#GENOME_FILES[@]}" -eq 0 ] && { log "[ERROR] No genomes found"; exit 1; }
+
+  log "[INFO] Copying genomes..."
+
+  for f in "${GENOME_FILES[@]}"; do
+    cp "$f" "$GENOMES/"
+  done
+
   run_step "PREPARATION" \
     python3 -u preperator.py \
       --input "$GENOMES" \
@@ -180,14 +132,11 @@ if [[ "$MODE" == "prep" || "$MODE" == "all" ]]; then
       --threads "$THREADS"
 fi
 
-# =========================================================
-# STEP 2: SIGNATURE ANALYSIS
-# =========================================================
+# STEP 2: SIGNATURE GENE FINDING
 if [[ "$MODE" == "signature" || "$MODE" == "all" ]]; then
 
-  # Ensure PREP exists if signature-only
   if [[ "$MODE" == "signature" && ! -d "$PREP" ]]; then
-    log "[ERROR] PREP directory not found. Run prep mode first."
+    log "[ERROR] PREP directory missing"
     exit 1
   fi
 
@@ -206,9 +155,6 @@ if [[ "$MODE" == "signature" || "$MODE" == "all" ]]; then
       --annotations "$ANNOTATIONS" \
       --outdir "$RESULTS" \
       --mode full
-
 fi
 
-# -----------------------------
-# DONE
-# -----------------------------
+log "[DONE] Pipeline completed"
