@@ -1,10 +1,12 @@
 import multiprocessing
 import math
 
+
 class ParallelismPolicy:
 
     def __init__(self, total_cpus=None):
         self.total_cpus = total_cpus or multiprocessing.cpu_count()
+
     # GLOBAL THREAD STRATEGY
     def base_threads(self):
         n = self.total_cpus
@@ -15,9 +17,9 @@ class ParallelismPolicy:
             return n
         else:
             return int(n * 0.95)
+
     # DFAST STRATEGY
     def dfast_policy(self, n_genomes):
-
         total_cpus = self.base_threads()
 
         T_TARGET = 12
@@ -56,9 +58,11 @@ class ParallelismPolicy:
             "jobs": jobs,
             "threads": threads
         }
+
     # ORTHOFINDER STRATEGY
     def orthofinder_policy(self):
         total = self.base_threads()
+
         if total <= 8:
             t = int(total * 0.7)
         elif total <= 16:
@@ -67,18 +71,22 @@ class ParallelismPolicy:
             t = int(total * 0.5)
         elif total <= 96:
             t = int(total * 0.55)
-         else:
+        else:
             t = int(total * 0.5)
-         a = max(1, total - t)
 
-         return {
+        a = max(1, total - t)
+
+        return {
             "total": total,
             "search_threads": t,
             "analysis_threads": a
-          }
+        }
+
     # GENERIC SPLIT
     def split(self, n_tasks):
         total = self.base_threads()
+
         jobs = min(n_tasks, total)
         threads = max(1, total // jobs)
+
         return jobs, threads
