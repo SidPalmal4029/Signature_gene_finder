@@ -1,203 +1,193 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
+# CONFIGURATION AND USER MODE FOR FRESH INSTALLATION AS WELL SELECTED UPGRADES
+
+ENV_NAME="SignatureGeneFinder"
+MODE="${MODE:-create}"   # create | use | upgrade
+LOG_FILE="install_$(date +%Y%m%d_%H%M%S).log"
+
 CONFIG="config/install_config.yaml"
+[ -f "$CONFIG" ] || CONFIG="conda.yaml"
 
-echo "[INFO] Starting installation..."
+# LOGGING (clean UI + full log)
 
-# 1. VALIDATE REPOSITORY STRUCTURE
-echo "[INFO] Validating repository structure..."
+exec 3>&1 4>&2
+exec 1>>"$LOG_FILE" 2>&1
+
+log() { echo -e "$1" >&3; }
+section() { echo -e "\n=== $1 ===" >&3; }
+
+trap 'log "[ERROR] Installation failed. Check log: $LOG_FILE"' ERR
+log "[INFO] Starting installation"
+log "[INFO] Log file: $LOG_FILE"
+
+#  VALIDATION OF DOWNLOADED REPOSITORY
+section "Validating repository"
 
 MISSING=0
+check_file() { [ -f "$1" ] || { log "[ERROR] Missing $1"; MISSING=1; }; }
+check_dir()  { [ -d "$1" ] || { log "[ERROR] Missing $1"; MISSING=1; }; }
 
-check_file() {
-  if [ ! -f "$1" ]; then
-    echo "[ERROR] Missing file: $1"
-    MISSING=1
-  else
-    echo "[OK] $1"
-  fi
-}
-
-check_dir() {
-  if [ ! -d "$1" ]; then
-    echo "[ERROR] Missing directory: $1"
-    MISSING=1
-  else
-    echo "[OK] $1"
-  fi
-}
-
-# Root
 check_file "signature-gene-finder.sh"
-check_file "help.txt"
-
-# YAML
-if [ -f "$CONFIG" ]; then
-  echo "[OK] $CONFIG"
-elif [ -f "conda.yaml" ]; then
-  CONFIG="conda.yaml"
-  echo "[OK] conda.yaml"
-else
-  echo "[ERROR] No config YAML found"
-  exit 1
-fi
-
-# Core
 check_dir "module"
 check_file "module/preperator.py"
 check_file "module/signaturegenefinder.py"
-
-# Worker
 check_dir "module/Worker"
 
-REQUIRED_WORKERS=(
-  "Annotator_DFAST.py"
-  "run_orthofinder.py"
-  "phylogroup_builder.py"
-  "pangenome.py"
-  "ogri_calc.py"
-  "signature_core.py"
-)
+[ "$MISSING" -eq 1 ] && exit 1
+log "[OK] Repository valid"
 
-for f in "${REQUIRED_WORKERS[@]}"; do
-  check_file "module/Worker/$f"
-done
+# 2. ENVIRONMENT HANDLING
 
-WORKER_COUNT=$(find module/Worker -type f -name "*.py" | wc -l)
+section "Environment setup"
 
-if [ "$WORKER_COUNT" -lt 8 ]; then
-  echo "[ERROR] Too few worker modules ($WORKER_COUNT)"
-  MISSING=1
-else
-  echo "[OK] Worker count: $WORKER_COUNT"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+
+if [ "$MODE" = "create" ]; then
+
+  if conda env list | grep -q "^$ENV_NAME "; then
+    log "[INFO] Using existing env: $ENV_NAME"
+  else
+    log "[INFO] Creating env: $ENV_NAME"
+    conda create -y -n "$ENV_NAME" python=3.12
+  fi
+
+  conda activate "$ENV_NAME"
+
+elif [ "$MODE" = "use" ]; then
+
+  [ -z "${CONDA_PREFIX:-}" ] && {
+    log "[ERROR] Activate env first"
+    exit 1
+  }
+
+  log "[INFO] Using active env: $CONDA_PREFIX"
+
+elif [ "$MODE" = "upgrade" ]; then
+
+  if conda env list | grep -q "^$ENV_NAME "; then
+    conda activate "$ENV_NAME"
+    log "[INFO] Upgrading env: $ENV_NAME"
+  else
+    log "[ERROR] Env not found"
+    exit 1
+  fi
 fi
 
-if [ "$MISSING" -eq 1 ]; then
-  echo "[ERROR] Repository validation failed"
+# Prevent base install
+if [[ "$CONDA_PREFIX" == *"/base" && "$MODE" != "use" ]]; then
+  log "[ERROR] Refusing to install into base"
   exit 1
 fi
 
-echo "[INFO] Repository validation passed"
+#  PARSE YAML
 
-# 2. CHECK CONDA ENV
-if [ -z "${CONDA_PREFIX:-}" ]; then
-  echo "[ERROR] No conda environment active"
-  exit 1
-fi
+section "Parsing configuration"
 
-echo "[INFO] Using environment: $CONDA_PREFIX"
-
-# 3. PARSE YAML (LIGHTWEIGHT)
-parse_list() {
-  grep -A50 "$1" "$CONFIG" | grep "-" | sed 's/.*- //'
+parse_block() {
+  local start="$1" stop="$2"
+  awk -v s="$start" -v e="$stop" '
+    $0 ~ s {flag=1; next}
+    $0 ~ e {flag=0}
+    flag && $0 ~ /^[[:space:]]*-/ {
+      gsub(/^[[:space:]]*-[[:space:]]*/, "", $0)
+      print
+    }
+  ' "$CONFIG"
 }
 
-CONDA_DEPS=$(parse_list "conda:")
-REQUIRED_TOOLS=$(parse_list "required_tools:")
-OPTIONAL_TOOLS=$(parse_list "optional_tools:")
+CONDA_DEPS=$(parse_block "conda:" "pip:")
+mapfile -t REQUIRED_TOOLS < <(parse_block "required_tools:" "optional_tools:")
+mapfile -t OPTIONAL_TOOLS < <(parse_block "optional_tools:" "databases:")
 
-# 4. INSTALL DEPENDENCIES
-echo "[INFO] Installing dependencies..."
+[ -z "$CONDA_DEPS" ] && { log "[ERROR] No dependencies found"; exit 1; }
 
-mamba install -y -c bioconda -c conda-forge $CONDA_DEPS
+#  INSTALL DEPENDENCIES
 
-# 5. DEPLOY PIPELINE
+section "Installing dependencies"
+
+mamba install -y \
+  -c conda-forge \
+  -c bioconda \
+  --strict-channel-priority \
+  $CONDA_DEPS
+
+log "[OK] Dependencies installed"
+
+# DFAST DATABASE
+
+section "Setting up DFAST DB"
+
+if command -v dfast_file_downloader.py >/dev/null 2>&1; then
+
+  DB="$CONDA_PREFIX/share/dfast"
+
+  if [ -d "$DB" ] && find "$DB" -type f | grep -q .; then
+    log "[OK] DFAST DB present"
+  else
+    log "[INFO] Downloading DFAST DB..."
+    dfast_file_downloader.py --protein dfast --cdd Cog --hmm TIGR
+  fi
+else
+  log "[ERROR] dfast downloader missing"
+  exit 1
+fi
+
+#  DEPLOY
+
+section "Deploying pipeline"
+
 BASE="$CONDA_PREFIX"
-BIN="$CONDA_PREFIX/bin"
-SHARE="$CONDA_PREFIX/share/SignatureGeneFinder"
+BIN="$BASE/bin"
+SHARE="$BASE/share/SignatureGeneFinder"
 
-echo "[INFO] Deploying to: $SHARE"
 mkdir -p "$SHARE"
 
 cp -r module "$SHARE/"
 cp signature-gene-finder.sh "$SHARE/"
+[ -f help.txt ] && cp help.txt "$SHARE/"
 
-[ -f "help.txt" ] && cp help.txt "$SHARE/"
-
-# Wrapper
 ln -sf "$SHARE/signature-gene-finder.sh" "$BIN/Signature-gene-finder"
 chmod +x "$SHARE/signature-gene-finder.sh"
 
-# 6. VALIDATE TOOLS
-echo "[INFO] Validating tools..."
+# install stamp
+cat > "$SHARE/install.meta" <<EOF
+version=1.0
+date=$(date)
+env=$CONDA_PREFIX
+EOF
+
+log "[OK] Deployment complete"
+
+# VALIDATION
+
+section "Validating tools"
+
+normalize() {
+  case "$1" in
+    python3) echo "python" ;;
+    *) echo "$1" ;;
+  esac
+}
 
 FAILED=0
 
-check_tool() {
-  if command -v "$1" >/dev/null 2>&1; then
-    echo "[OK] $1"
-  else
-    echo "[FAIL] $1"
-    FAILED=1
-  fi
-}
-
-for tool in $REQUIRED_TOOLS; do
-  check_tool "$tool"
+for tool in "${REQUIRED_TOOLS[@]:-}"; do
+  t=$(normalize "$tool")
+  command -v "$t" >/dev/null 2>&1 \
+    && log "[OK] $tool" \
+    || { log "[FAIL] $tool"; FAILED=1; }
 done
 
-echo "[INFO] Checking optional tools..."
+# SANITY TESTS
 
-for tool in $OPTIONAL_TOOLS; do
-  if command -v "$tool" >/dev/null 2>&1; then
-    echo "[OK] $tool"
-  else
-    echo "[WARN] Missing optional tool: $tool"
-  fi
-done
-
-# 6. DFAST DATABASE SETUP 
-echo "[INFO] Setting up DFAST databases..."
-
-if command -v dfast_file_downloader.py >/dev/null 2>&1; then
-
-  DFAST_DB_DIR="$CONDA_PREFIX/share/dfast"
-
-  # Check for actual DB content (not just folder)
-  if [ -d "$DFAST_DB_DIR" ] && find "$DFAST_DB_DIR" -type f | grep -q .; then
-    echo "[INFO] DFAST DB already present, skipping download"
-  else
-    echo "[INFO] Downloading DFAST DB (protein + COG + TIGR)..."
-
-    if dfast_file_downloader.py \
-        --protein dfast \
-        --cdd Cog \
-        --hmm TIGR; then
-
-      echo "[OK] DFAST DB setup complete."
-    else
-      echo "[ERROR] DFAST DB setup failed."
-      exit 1
-    fi
-  fi
-
-else
-  echo "[ERROR] dfast_file_downloader.py not found"
-  exit 1
-fi
-
-
-# 7. JAVA CHECK (EzAAI)
-echo "[INFO] Checking Java..."
-
-JAVA_VER=$(java -version 2>&1 | head -n 1 || true)
-echo "[INFO] $JAVA_VER"
-
-if [[ "$JAVA_VER" != *"1.8"* ]]; then
-  echo "[WARNING] Java 8 recommended for EzAAI"
-fi
-
-# 8. TEST COMMANDS
-echo "[INFO] Running sanity tests..."
+section "Running tests"
 
 run_test() {
-  if eval "$1" >/dev/null 2>&1; then
-    echo "[OK] $1"
-  else
-    echo "[WARN] Failed: $1"
-  fi
+  eval "$1" >/dev/null 2>&1 \
+    && log "[OK] $1" \
+    || log "[WARN] $1"
 }
 
 run_test "get_homologues.pl -h"
@@ -207,11 +197,11 @@ run_test "mmseqs -h"
 run_test "java -version"
 
 # FINAL
+
 if [ "$FAILED" -eq 1 ]; then
-  echo "[ERROR] Installation incomplete"
+  log "[ERROR] Installation incomplete"
   exit 1
 fi
 
-echo ""
-echo "[SUCCESS] Installation complete"
-echo "Run: Signature-gene-finder -h"
+log "[SUCCESS] Installation complete"
+log "Run: Signature-gene-finder -h"
