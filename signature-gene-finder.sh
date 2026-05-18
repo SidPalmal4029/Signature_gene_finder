@@ -6,6 +6,10 @@ set -euo pipefail
 THREADS=""
 MODE="all"
 
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+BASE_DIR="$(dirname "$SCRIPT_PATH")"
+MODULE_DIR="$BASE_DIR/module"
+
 # USAGE
 usage() {
   echo "Signature Gene Finder"
@@ -65,6 +69,8 @@ if [[ "${SHOW_HELP:-0}" -eq 1 ]]; then
   exit 0
 fi
 
+
+#
 # VALIDATION
 
 if [[ "$MODE" != "signature" ]]; then
@@ -104,15 +110,22 @@ log "[INFO] Threads: $THREADS"
 
 # STEP RUNNER
 run_step() {
-  STEP_NAME="$1"
+  local STEP_NAME="$1"
   shift
 
   log "[INFO] Starting: $STEP_NAME"
 
-  "$@" 2>&1 | while IFS=read -r line; do
+  "$@" 2>&1 | while IFS= read -r line; do
     echo "$line"
     echo "[$STEP_NAME] $line" >> "$LOG"
   done
+
+  local status=${PIPESTATUS[0]}
+
+  if [ "$status" -ne 0 ]; then
+    log "[ERROR] Failed: $STEP_NAME"
+    return "$status"
+  fi
 
   log "[INFO] Completed: $STEP_NAME"
 }
@@ -135,7 +148,7 @@ if [[ "$MODE" == "prep" || "$MODE" == "all" ]]; then
   done
 
   run_step "PREPARATION" \
-    python3 -u preperator.py \
+    python3 -u "$MODULE_DIR/preperator.py" \
       --input "$GENOMES" \
       --output "$PREP" \
       --outgroup "$OUTGROUP" \
@@ -159,7 +172,7 @@ if [[ "$MODE" == "signature" || "$MODE" == "all" ]]; then
   [ ! -f "$ANNOTATIONS" ] && { log "[ERROR] Missing annotations"; exit 1; }
 
   run_step "SIGNATURE" \
-    python3 -u signaturegenefinder.py \
+    python3 -u "$MODULE_DIR/signaturegenefinder.py" \
       --pan_matrix "$PAN_MATRIX" \
       --phylogroups "$PHYLOGROUPS" \
       --annotations "$ANNOTATIONS" \
