@@ -5,8 +5,8 @@ from Worker.Annotator_DFAST import run_dfast_batch
 from Worker.ogri_calc import run_ogri
 from Worker.run_orthofinder import run_orthofinder
 from Worker.reroot_tree import reroot_tree
-from Worker.build_phylogroups import auto_phylogroups
-from Worker.run_pangenome import run_pangenome
+from Worker.phylogroup_builder import auto_phylogroups
+from Worker.pangenome import run_pangenome
 
 
 def main():
