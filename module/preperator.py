@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from Worker.annotate_dfast import run_dfast_batch
+from Worker.Annotate_DFAST import run_dfast_batch
 from Worker.ogri_calc import run_ogri
 from Worker.run_orthofinder import run_orthofinder
 from Worker.reroot_tree import reroot_tree
@@ -87,14 +87,14 @@ def main():
         # ogri_db=os.path.join(ogri_dir, "db", "ogri.db")
     )
     
-     # STEP 7: PANGENOME
-     pangenome_dir = os.path.join(args.output, "pangenome")
-     run_pangenome(
-         ann_dir=ann_dir,
-         out_dir=pangenome_dir,
-         outgroup=args.outgroup,
-         threads=args.threads
-     )   
+    # STEP 7: PANGENOME
+    pangenome_dir = os.path.join(args.output, "pangenome")
+    run_pangenome(
+        ann_dir=ann_dir,
+        out_dir=pangenome_dir,
+        outgroup=args.outgroup,
+        threads=args.threads
+    )
 
     print("\n[DONE] Pipeline complete up to phylogroup generation")
 
