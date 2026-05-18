@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from Worker.Annotate_DFAST import run_dfast_batch
+from Worker.Annotator_DFAST import run_dfast_batch
 from Worker.ogri_calc import run_ogri
 from Worker.run_orthofinder import run_orthofinder
 from Worker.reroot_tree import reroot_tree
