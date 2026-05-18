@@ -3,7 +3,7 @@ import re
 import shutil
 import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from modules.paralle_policy import ParallelismPolicy
+from module.paralle_policy import ParallelismPolicy
 
 # SANITIZE GENOME NAME
 def sanitize_name(filename):
