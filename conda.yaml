@@ -49,6 +49,7 @@ dependencies:
     - biopython
     - pandas
     - matplotlib
+    - networkx
 
     # ---- Supporting tools ----
     - blast
